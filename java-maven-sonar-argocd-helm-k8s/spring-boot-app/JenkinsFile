@@ -40,12 +40,20 @@ pipeline {
       }
     }
 
-    stage('Checkout') {
-      steps {
-        checkout scm
-        sh 'echo Checkout completed.'
-      }
+   stage('Checkout') {
+  steps {
+    script {
+      checkout([$class: 'GitSCM',
+        branches: [[name: '*/main']],
+        userRemoteConfigs: [[
+          url: 'https://github.com/akshaycodes04/Jenkins-Zero-To-Hero'
+        ]]
+      ])
     }
+    sh 'echo Checkout complete'
+  }
+}
+
 
     stage('Build and Test') {
       steps {
@@ -82,23 +90,30 @@ pipeline {
       }
     }
 
-    stage('Update Deployment File') {
+  stage('Update Deployment File') {
   steps {
     withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
       sh '''
         cd java-maven-sonar-argocd-helm-k8s
+
+        if [ ! -d .git ]; then
+          echo "❌ Not a git repo! Exiting..."
+          exit 1
+        fi
+
         git config user.email "akshaysaji04@gmail.com"
         git config user.name "Akshay Saji"
-        
-        sed -i "s|replaceImageTag|11|g" spring-boot-app-manifests/deployment.yml
+
+        sed -i "s|replaceImageTag|12|g" spring-boot-app-manifests/deployment.yml
 
         git add spring-boot-app-manifests/deployment.yml
-        git commit -m "Update deployment image to version 11"
-        git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+        git commit -m "Update image tag to 12"
+        git push https://${GITHUB_TOKEN}@github.com/akshaycodes04/Jenkins-Zero-To-Hero HEAD:main
       '''
     }
   }
 }
+
 
   }
 }
