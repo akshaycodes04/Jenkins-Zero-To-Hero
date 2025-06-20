@@ -1,7 +1,7 @@
 pipeline {
   agent {
     docker {
-      image 'jenkins/jnlp-agent-docker'
+      image 'ubuntu:22.04' // Start from a base image
       args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
     }
   }
@@ -14,6 +14,32 @@ pipeline {
   }
 
   stages {
+    stage('Setup Environment') {
+      steps {
+        sh '''
+          apt update
+          apt install -y wget gnupg curl git unzip apt-transport-https ca-certificates lsb-release software-properties-common
+
+          # Install Java 17
+          wget -qO- https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor -o /etc/apt/trusted.gpg.d/adoptium.gpg
+          echo "deb https://packages.adoptium.net/artifactory/deb $(lsb_release -cs) main" > /etc/apt/sources.list.d/adoptium.list
+          apt update
+          apt install -y temurin-17-jdk
+
+          # Install Maven
+          apt install -y maven
+
+          # Install Docker CLI
+          apt install -y docker.io
+
+          # Confirm installations
+          java -version
+          mvn -version
+          docker --version
+        '''
+      }
+    }
+
     stage('Checkout') {
       steps {
         checkout scm
@@ -21,16 +47,14 @@ pipeline {
       }
     }
 
-   stage('Build and Test') {
-  steps {
-    sh '''
-      apt update && apt install -y maven
-      mvn -version
-      cd java-maven-sonar-argocd-helm-k8s/spring-boot-app
-      mvn clean package
-    '''
-  }
-}
+    stage('Build and Test') {
+      steps {
+        sh '''
+          cd java-maven-sonar-argocd-helm-k8s/spring-boot-app
+          mvn clean package
+        '''
+      }
+    }
 
     stage('Static Code Analysis') {
       steps {
